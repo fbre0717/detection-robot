@@ -73,11 +73,23 @@ while True:
             # Calculate the distance to the object
             object_depth = np.median(depth_image[int(y1):int(y2), int(x1):int(x2)])
 
+            # 픽셀 차이를 실제 거리로 변환
+            # RealSense D455의 수평 FOV는 87도
+            FOV_HORIZONTAL = 87  # degrees
+            pixel_to_degree = FOV_HORIZONTAL / 640  # degree/pixel
+
+            # 중심으로부터의 픽셀 차이
+            pixel_difference = center_x - image_center
+
+            # 각도 계산 (탄젠트 사용)
+            # 음수: 왼쪽, 양수: 오른쪽
+            angle = pixel_difference * pixel_to_degree
+
             # Get the object's class name
             class_name = model.names[int(class_id)]
 
             # Create label with class name, distance, and center position
-            label = f"{class_name}: {object_depth:.2f}m, X:{center_x:.2f}"
+            label = f"{class_name}: {object_depth:.2f}m, angle: {angle:.1f}°"
 
             # Draw a rectangle around the object
             cv2.rectangle(color_image, (int(x1), int(y1)), (int(x2), int(y2)), (252, 119, 30), 2)
@@ -101,6 +113,7 @@ while True:
             else:
                 direction = 'a'  # 객체가 오른쪽에 있음
                 py_serial.write(direction.encode('utf-8'))
+            print("command :", direction)
 
     # Show the image
     cv2.imshow("Color Image", color_image)
