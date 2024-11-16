@@ -38,6 +38,11 @@ pipeline.start(config)
 # Write your yolov5 depth scale here
 depth_scale = 0.001
 
+# run state
+isrun = False
+state = 0
+last_command = 'n'
+
 # Main loop
 
 while True:
@@ -89,7 +94,7 @@ while True:
             class_name = model.names[int(class_id)]
 
             # Create label with class name, distance, and center position
-            label = f"{class_name}: {object_depth:.2f}m, angle: {angle:.1f}°"
+            label = f"{class_name}: {object_depth:.2f}m, angle: {angle:.1f}"
 
             # Draw a rectangle around the object
             cv2.rectangle(color_image, (int(x1), int(y1)), (int(x2), int(y2)), (252, 119, 30), 2)
@@ -99,21 +104,72 @@ while True:
 
             # Print the object's class and distance
             print(label, class_id)
-            if object_depth < 0.5:
-                com = 'b'
-                py_serial.write(com.encode('utf-8'))
-            else:
-                com = 'a'
-                py_serial.write(com.encode('utf-8'))
+            # if object_depth < 0.5:
+            #     com = 'b'
+            #     py_serial.write(com.encode('utf-8'))
+            # else:
+            #     com = 'a'
+            #     py_serial.write(com.encode('utf-8'))
 
             # 좌/우 제어
-            if center_x < image_center:
-                direction = 'b'  # 객체가 왼쪽에 있음
-                py_serial.write(direction.encode('utf-8'))
+
+
+            if isrun:
+                if angle >= 30: # right rotation
+                    command = 's'
+                    py_serial.write(command.encode('utf-8'))
+                    command = 'd'
+                    py_serial.write(command.encode('utf-8'))
+                    command = 'w'
+                    py_serial.write(command.encode('utf-8'))        
+                    print('sdw')            
+
+                elif angle <= -30: # left rotation
+                    command = 's'
+                    py_serial.write(command.encode('utf-8'))
+                    command = 'a'
+                    py_serial.write(command.encode('utf-8'))
+                    command = 'w'
+                    py_serial.write(command.encode('utf-8'))         
+                    print('saw')           
             else:
-                direction = 'a'  # 객체가 오른쪽에 있음
-                py_serial.write(direction.encode('utf-8'))
-            print("command :", direction)
+                if angle <= -15:
+                    command = 'a' # left rotation
+                    py_serial.write(command.encode('utf-8'))
+                elif angle >= 15:
+                    command = 'd' # right rotation
+                    py_serial.write(command.encode('utf-8'))
+                else:
+                    command = 'w' # run forward
+                    py_serial.write(command.encode('utf-8'))
+                    isrun = True
+                print("command :", command)
+
+
+            # new code
+            if state == 0:
+                if angle <= -15:
+                    command = 'a'
+                elif angle >= 15:
+                    command = 'd'
+                else:
+                    command = 'w'
+                    state += 1
+            elif state == 1:
+                if angle <= -30:
+                    command = 'a'
+                elif angle >= 30:
+                    command = 'd'
+                else:
+                    command = 'w'
+                    state += 1
+            if command != last_command:
+                py_serial.write(command.encode('utf-8'))
+                last_command = command
+
+            
+
+            
 
     # Show the image
     cv2.imshow("Color Image", color_image)
