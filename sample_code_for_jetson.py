@@ -103,7 +103,7 @@ while True:
             cv2.putText(color_image, label, (int(x1), int(y1)-10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (252, 119, 30), 2)
 
             # Print the object's class and distance
-            print(label, class_id)
+            # print(label, class_id)
             # if object_depth < 0.5:
             #     com = 'b'
             #     py_serial.write(com.encode('utf-8'))
@@ -113,59 +113,72 @@ while True:
 
             # 좌/우 제어
 
-
-            if isrun:
-                if angle >= 30: # right rotation
-                    command = 's'
-                    py_serial.write(command.encode('utf-8'))
-                    command = 'd'
-                    py_serial.write(command.encode('utf-8'))
-                    command = 'w'
-                    py_serial.write(command.encode('utf-8'))        
-                    print('sdw')            
-
-                elif angle <= -30: # left rotation
-                    command = 's'
-                    py_serial.write(command.encode('utf-8'))
-                    command = 'a'
-                    py_serial.write(command.encode('utf-8'))
-                    command = 'w'
-                    py_serial.write(command.encode('utf-8'))         
-                    print('saw')           
-            else:
-                if angle <= -15:
-                    command = 'a' # left rotation
-                    py_serial.write(command.encode('utf-8'))
-                elif angle >= 15:
-                    command = 'd' # right rotation
-                    py_serial.write(command.encode('utf-8'))
-                else:
-                    command = 'w' # run forward
-                    py_serial.write(command.encode('utf-8'))
-                    isrun = True
-                print("command :", command)
-
-
             # new code
+            # if state == 0:
+            #     if angle <= -15:
+            #         command = 'a'
+            #     elif angle >= 15:
+            #         command = 'd'
+            #     else:
+            #         command = 'w'
+            #         state += 1
+            # elif state == 1:
+            #     if angle <= -30:
+            #         command = 'a'
+            #         state += 1
+            #     elif angle >= 30:
+            #         command = 'd'
+            #         state += 1
+            #     else:
+            #         command = 'w'
+            # elif state == 2:
+            #     command = 'w'
+            # print(command)
+
+
             if state == 0:
                 if angle <= -15:
                     command = 'a'
+                    state += 1
                 elif angle >= 15:
                     command = 'd'
+                    state += 1
                 else:
                     command = 'w'
-                    state += 1
+                    state += 2
+
             elif state == 1:
-                if angle <= -30:
-                    command = 'a'
-                elif angle >= 30:
-                    command = 'd'
-                else:
+                if angle < 30 or angle > -30:
                     command = 'w'
                     state += 1
-            if command != last_command:
-                py_serial.write(command.encode('utf-8'))
-                last_command = command
+                else:
+                    continue
+
+            elif state == 2:
+                if angle >= 30:
+                    command = 'd'
+                    state += 1
+                elif angle <= -30:
+                    command = 'a'
+                    state += 1
+                else:
+                    continue
+            
+            elif state == 3:
+                command = 'w'
+                state += 1
+            
+            else:
+                continue
+
+            py_serial.write(command.encode('utf-8'))
+            print(command)
+
+
+            # if command != last_command:
+            #     py_serial.write(command.encode('utf-8'))
+            #     last_command = command
+            #     print("Serial Serial Serial :", command)
 
             
 
