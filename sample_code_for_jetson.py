@@ -140,17 +140,21 @@ while True:
                 if angle <= -15:
                     command = 'a'
                     state += 1
+                    print("state is update to ", state)
                 elif angle >= 15:
                     command = 'd'
                     state += 1
+                    print("state is update to ", state)
                 else:
                     command = 'w'
                     state += 2
+                    print("state is update to ", state)
 
             elif state == 1:
                 if angle < 30 or angle > -30:
                     command = 'w'
                     state += 1
+                    print("state is update to ", state)
                 else:
                     continue
 
@@ -158,15 +162,18 @@ while True:
                 if angle >= 30:
                     command = 'd'
                     state += 1
+                    print("state is update to ", state)
                 elif angle <= -30:
                     command = 'a'
                     state += 1
+                    print("state is update to ", state)
                 else:
                     continue
             
             elif state == 3:
                 command = 'w'
                 state += 1
+                print("state is update to ", state)
             
             else:
                 continue
