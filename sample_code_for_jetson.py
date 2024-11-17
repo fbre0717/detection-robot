@@ -6,28 +6,70 @@ import serial
 
 py_serial = serial.Serial(  port = '/dev/ttyACM0',  baudrate=57600)
 # Load the YOLOv5 model
+# device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# model = torch.hub.load('ultralytics/yolov5', 'yolov5s', pretrained=True).to(device)
+# 기존 코드
+# device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# model = torch.hub.load('ultralytics/yolov5', 'yolov5s', pretrained=True).to(device)
+
+# 새로운 코드
+import os
+import sys
+import torch
+
+# YOLOv5 디렉토리를 시스템 경로에 추가
+YOLOV5_DIR = '/home/jetson/Downloads/detection-robot/yolov5'
+sys.path.append(YOLOV5_DIR)
+
+from models.common import DetectMultiBackend
+from utils.torch_utils import select_device
+
+# GPU 설정
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model = torch.hub.load('ultralytics/yolov5', 'yolov5s', pretrained=True).to(device)
+if torch.cuda.is_available():
+    torch.backends.cudnn.benchmark = True
+    torch.backends.cudnn.enabled = True
+
+# 학습된 모델 경로 설정
+trained_model = './runs/train/exp/weights/best.pt'  # 실제 모델 경로로 수정하세요
+
+# 모델 로드
+model = DetectMultiBackend(
+    weights=trained_model,
+    device=device,
+    dnn=False,
+    data=None,
+)
+
+# 모델을 평가 모드로 설정
+model.eval()
+
+# 워밍업
+model.warmup(imgsz=(1, 3, 640, 480))  # 이미지 크기를 카메라 해상도에 맞춤
 
 # Define COCO instance category names for label identification
-COCO_INSTANCE_CATEGORY_NAMES = [
-    'person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus',
-    'train', 'truck', 'boat', 'traffic light', 'fire hydrant', 'stop sign',
-    'parking meter', 'bench', 'bird', 'cat', 'dog', 'horse', 'sheep', 'cow',
-    'elephant', 'bear', 'zebra', 'giraffe', 'backpack', 'umbrella', 'handbag', 'tie', 
-    'suitcase', 'frisbee', 'skis', 'snowboard', 'sports ball',
-    'kite', 'baseball bat', 'baseball glove', 'skateboard', 'surfboard', 'tennis racket',
-    'bottle', 'wine glass', 'cup', 'fork', 'knife', 'spoon', 'bowl',
-    'banana', 'apple', 'sandwich', 'orange', 'broccoli', 'carrot', 'hot dog', 'pizza',
-    'donut', 'cake', 'chair', 'couch', 'potted plant', 'bed', 'dining table',
-    'toilet', 'tv', 'laptop', 'mouse', 'remote', 'keyboard', 'cell phone',
-    'microwave', 'oven', 'toaster', 'sink', 'refrigerator', 'book',
-    'clock', 'vase', 'scissors', 'teddy bear', 'hair drier', 'toothbrush'
-]
+# COCO_INSTANCE_CATEGORY_NAMES = [
+#     'person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus',
+#     'train', 'truck', 'boat', 'traffic light', 'fire hydrant', 'stop sign',
+#     'parking meter', 'bench', 'bird', 'cat', 'dog', 'horse', 'sheep', 'cow',
+#     'elephant', 'bear', 'zebra', 'giraffe', 'backpack', 'umbrella', 'handbag', 'tie', 
+#     'suitcase', 'frisbee', 'skis', 'snowboard', 'sports ball',
+#     'kite', 'baseball bat', 'baseball glove', 'skateboard', 'surfboard', 'tennis racket',
+#     'bottle', 'wine glass', 'cup', 'fork', 'knife', 'spoon', 'bowl',
+#     'banana', 'apple', 'sandwich', 'orange', 'broccoli', 'carrot', 'hot dog', 'pizza',
+#     'donut', 'cake', 'chair', 'couch', 'potted plant', 'bed', 'dining table',
+#     'toilet', 'tv', 'laptop', 'mouse', 'remote', 'keyboard', 'cell phone',
+#     'microwave', 'oven', 'toaster', 'sink', 'refrigerator', 'book',
+#     'clock', 'vase', 'scissors', 'teddy bear', 'hair drier', 'toothbrush'
+# ]
+# 새로운 클래스 정의
+CUSTOM_CLASSES = ['ai', 'awear', 'imr', 'gist']
+choose_labels = CUSTOM_CLASSES  # 모든 클래스를 탐지
+extract_idx = list(range(len(CUSTOM_CLASSES)))  # 모든 클래스의 인덱스 (0,1,2,3)
 
 
-choose_labels = ['person']
-extract_idx = [i for i, label in enumerate(COCO_INSTANCE_CATEGORY_NAMES) if label in choose_labels]
+# choose_labels = ['person']
+# extract_idx = [i for i, label in enumerate(COCO_INSTANCE_CATEGORY_NAMES) if label in choose_labels]
 
 # Set up the RealSense D455 camera
 pipeline = rs.pipeline()
@@ -39,9 +81,7 @@ pipeline.start(config)
 depth_scale = 0.001
 
 # run state
-isrun = False
 state = 0
-last_command = 'n'
 
 # Main loop
 
@@ -91,7 +131,8 @@ while True:
             angle = pixel_difference * pixel_to_degree
 
             # Get the object's class name
-            class_name = model.names[int(class_id)]
+            # class_name = model.names[int(class_id)]
+            class_name = CUSTOM_CLASSES[int(class_id)]
 
             # Create label with class name, distance, and center position
             label = f"{class_name}: {object_depth:.2f}m, angle: {angle:.1f}"
@@ -101,40 +142,6 @@ while True:
 
             # Draw the label
             cv2.putText(color_image, label, (int(x1), int(y1)-10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (252, 119, 30), 2)
-
-            # Print the object's class and distance
-            # print(label, class_id)
-            # if object_depth < 0.5:
-            #     com = 'b'
-            #     py_serial.write(com.encode('utf-8'))
-            # else:
-            #     com = 'a'
-            #     py_serial.write(com.encode('utf-8'))
-
-            # 좌/우 제어
-
-            # new code
-            # if state == 0:
-            #     if angle <= -15:
-            #         command = 'a'
-            #     elif angle >= 15:
-            #         command = 'd'
-            #     else:
-            #         command = 'w'
-            #         state += 1
-            # elif state == 1:
-            #     if angle <= -30:
-            #         command = 'a'
-            #         state += 1
-            #     elif angle >= 30:
-            #         command = 'd'
-            #         state += 1
-            #     else:
-            #         command = 'w'
-            # elif state == 2:
-            #     command = 'w'
-            # print(command)
-
 
             if state == 0:
                 if angle <= -15:
@@ -180,16 +187,6 @@ while True:
 
             py_serial.write(command.encode('utf-8'))
             print(command)
-
-
-            # if command != last_command:
-            #     py_serial.write(command.encode('utf-8'))
-            #     last_command = command
-            #     print("Serial Serial Serial :", command)
-
-            
-
-            
 
     # Show the image
     cv2.imshow("Color Image", color_image)
